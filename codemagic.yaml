@@ -1,0 +1,50 @@
+workflows:
+  ios-workflow:
+    name: StackedOllama iOS Build
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: codemagic
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.stackedollama.app
+      vars:
+        XCODE_WORKSPACE: "StackedOllama.xcworkspace"
+        XCODE_SCHEME: "StackedOllama"
+        BUNDLE_ID: "com.stackedollama.app"
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install dependencies
+        script: |
+          # Add any dependency installation here if needed
+          echo "Installing dependencies..."
+      
+      - name: Set up code signing
+        script: xcode-project use-profiles
+      
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --project "$CM_BUILD_DIR/StackedOllama.xcodeproj" \
+            --scheme "$XCODE_SCHEME"
+    
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    
+    publishing:
+      email:
+        recipients:
+          - your-email@example.com
+        notify:
+          success: true
+          failure: true
+      
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Internal Testers
