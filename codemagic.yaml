@@ -8,11 +8,11 @@ workflows:
     environment:
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.stackedollama.app
+        bundle_identifier: com.sondre.stackedollama
       vars:
         XCODE_WORKSPACE: "StackedOllama.xcworkspace"
         XCODE_SCHEME: "StackedOllama"
-        BUNDLE_ID: "com.stackedollama.app"
+        BUNDLE_ID: "com.sondre.stackedollama"
       xcode: latest
       cocoapods: default
     scripts:
