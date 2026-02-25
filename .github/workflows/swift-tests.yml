@@ -1,0 +1,33 @@
+name: Swift Tests (Docker)
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Build Docker image
+        run: docker build -t stackedollama-tests .
+      
+      - name: Run Swift tests
+        run: |
+          docker run --rm \
+            -e CI=1 \
+            -e SWIFT_CHANNEL=5.10 \
+            stackedollama-tests
+      
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}

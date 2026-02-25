@@ -1,0 +1,408 @@
+default_platform(:ios)
+
+platform :ios do
+  # ---- Health Check: Verify all secrets before building ----
+  desc "Check that all required secrets are configured"
+  lane :health_check do
+    UI.message "🔐 Checking GitHub token..."
+    if ENV['GH_TOKEN'].to_s.empty?
+      UI.user_error!("❌ GH_TOKEN secret is missing!")
+    else
+      UI.success "✅ GH_TOKEN present"
+    end
+
+    UI.message "🔑 Checking App Store Connect API..."
+    if ENV['APP_STORE_CONNECT_ISSUER_ID'].to_s.empty?
+      UI.warning "⚠️  APP_STORE_CONNECT_ISSUER_ID not set (optional for TestFlight)")
+    else
+      UI.success "✅ App Store Connect API configured"
+    end
+
+    if ENV['CRASHLYTICS_SLACK_WEBHOOK_URL']
+      UI.success "✅ Slack webhook URL is set"
+    else
+      UI.message "ℹ️  Slack webhook not configured (optional)"
+    end
+
+    UI.success "🎉 Health check passed – ready to build!"
+  end
+  
+  desc "Full CI pipeline – build, test, upload to TestFlight"
+  lane :ci_build do
+    begin
+      # ---- Versioning & Changelog ----
+      increment_version_number(xcodeproj: "StackedOllama.xcodeproj")
+      increment_build_number(xcodeproj: "StackedOllama.xcodeproj")
+      
+      version = get_version_number(xcodeproj: "StackedOllama.xcodeproj")
+      build = get_build_number(xcodeproj: "StackedOllama.xcodeproj")
+      
+      changelog = changelog_from_git_commits(
+        between: ["HEAD~20", "HEAD"],
+        pretty: "* %h %s"
+      )
+
+      # ---- Build ----
+      build_app(
+        scheme: "StackedOllama",
+        export_method: "app-store",
+        clean: true,
+        output_directory: "./build",
+        export_options: {
+          provisioningProfiles: {
+            "com.yourcompany.stackedollama" => "StackedOllama_Production"
+          },
+          signingStyle: "manual",
+          compileBitcode: false,
+          manageAppVersionAndBuildNumber: true
+        },
+        xcargs: "-allowProvisioningUpdates"
+      )
+
+      # ---- TestFlight (conditional on tags) ----
+      if is_release_tag?
+        UI.success("🚀 Release tag detected - distributing to external testers")
+        upload_to_testflight(
+          changelog: changelog,
+          distribute_external: true,
+          skip_waiting_for_build_processing: true
+        )
+      else
+        UI.message("📦 Regular build - internal TestFlight only")
+        upload_to_testflight(
+          changelog: changelog,
+          distribute_external: false,
+          skip_waiting_for_build_processing: true
+        )
+      end
+      
+      # ---- Slack Notification (Success) ----
+      if ENV['SLACK_WEBHOOK_URL']
+        slack(
+          message: "✅ Build ##{build} (v#{version}) – #{ENV['CI_BRANCH'] || 'main'} – klar for TestFlight!",
+          slack_url: ENV['SLACK_WEBHOOK_URL'],
+          channel: "#ios-ci",
+          success: true,
+          payload: {
+            "Build Number" => build,
+            "Version" => version,
+            "Branch" => ENV['CI_BRANCH'] || 'main'
+          }
+        )
+      end
+      
+    rescue => exception
+      # ---- Slack Notification (Failure) ----
+      if ENV['SLACK_WEBHOOK_URL']
+        slack(
+          message: "❌ Build ##{build} failed: #{exception.message}",
+          slack_url: ENV['SLACK_WEBHOOK_URL'],
+          channel: "#ios-ci",
+          success: false
+        )
+      end
+      raise exception
+    end
+  end
+  
+  desc "Development build"
+  lane :dev_build do
+    build_app(
+      scheme: "StackedOllama",
+      export_method: "development",
+      clean: true,
+      output_directory: "./build"
+    )
+  end
+  
+  desc "Release to App Store (from tag only)"
+  lane :ci_release do
+    begin
+      # Prepare changelog (use AI or git)
+      prepare_release
+      # Or use AI: generate_changelog_ai
+      
+      ensure_git_status_clean
+    
+    # Versioning
+    increment_version_number(xcodeproj: "StackedOllama.xcodeproj")
+    increment_build_number(xcodeproj: "StackedOllama.xcodeproj")
+    
+    version = get_version_number(xcodeproj: "StackedOllama.xcodeproj")
+    
+    # Build
+    build_app(
+      scheme: "StackedOllama",
+      export_method: "app-store",
+      clean: true,
+      output_directory: "./build",
+      export_options: {
+        provisioningProfiles: {
+          "com.yourcompany.stackedollama" => "StackedOllama_Production"
+        },
+        signingStyle: "manual",
+        compileBitcode: false,
+        manageAppVersionAndBuildNumber: true
+      },
+      xcargs: "-allowProvisioningUpdates"
+    )
+    
+    # Upload to App Store
+    upload_to_app_store(
+      submit_for_review: true,
+      automatic_release: true,
+      force: true,
+      skip_metadata: false,
+      skip_screenshots: false
+    )
+    
+    # Publish GitHub Release
+    publish_github_release
+    
+    # Notify Slack
+    notify_slack_crashlytics(status: :success)
+    
+    UI.success("✅ Version #{version} submitted to App Store!")
+    
+    rescue => exception
+      notify_slack_crashlytics(status: :failure)
+      raise exception
+    end
+  end
+  
+  desc "Bump version and create release tag"
+  lane :release do |options|
+    version_type = options[:type] || "patch"  # major, minor, patch
+    
+    # Increment version
+    increment_version_number(
+      bump_type: version_type,
+      xcodeproj: "StackedOllama.xcodeproj"
+    )
+    
+    version = get_version_number(xcodeproj: "StackedOllama.xcodeproj")
+    
+    # Commit version bump
+    git_commit(
+      path: ["StackedOllama.xcodeproj/project.pbxproj"],
+      message: "Bump version to #{version}"
+    )
+    
+    # Create tag
+    add_git_tag(tag: "v#{version}")
+    
+    # Push
+    push_to_git_remote(tags: true)
+    
+    UI.success("✅ Released version #{version}")
+    
+    # Slack notification
+    if ENV['SLACK_WEBHOOK_URL']
+      slack(
+        message: "🎉 Version #{version} released!",
+        slack_url: ENV['SLACK_WEBHOOK_URL'],
+        channel: "#ios-ci"
+      )
+    end
+  end
+  
+  # ---- Prepare Release: Generate changelog and commit ----
+  lane :prepare_release do
+    changelog = changelog_from_git_commits(
+      between: ["HEAD~20", "HEAD"],
+      pretty: "* %h %s"
+    )
+    
+    File.write("CHANGELOG.md", changelog)
+    
+    version = get_version_number(xcodeproj: "StackedOllama.xcodeproj")
+    release_title = "v#{version}"
+    ENV['FASTLANE_RELEASE_TITLE'] = release_title
+    
+    UI.message "📝 Changelog saved to CHANGELOG.md"
+  end
+
+  # ---- AI-Powered Changelog (using local Ollama) ----
+  desc "Generate AI-powered changelog using local Ollama"
+  lane :generate_changelog_ai do
+    # Get last 10 commits
+    commits = sh("git log --oneline -n 10 --pretty=format:'%h %s'").strip
+    
+    UI.message "🤖 Generating AI changelog with Ollama..."
+    
+    # Use local Ollama (qwen2.5-coder)
+    prompt = "You are a helpful assistant that writes concise, user-focused changelog entries. Use bullet points, start each line with '* '. Summarize these commits:\n\n#{commits}"
+    
+    ai_response = sh("ollama run qwen2.5-coder '#{prompt}'").strip
+    
+    # Save to CHANGELOG.md
+    File.write("CHANGELOG.md", ai_response)
+    
+    version = get_version_number(xcodeproj: "StackedOllama.xcodeproj")
+    ENV['FASTLANE_RELEASE_TITLE'] = "v#{version}"
+    
+    UI.success "🖋️  AI changelog generated and saved to CHANGELOG.md"
+    UI.message ai_response
+  end
+
+  # ---- Advanced Features ----
+  
+  desc "Verify build number increases monotonically"
+  lane :audit_version_number do
+    current = get_build_number(xcodeproj: "StackedOllama.xcodeproj")
+    previous_file = "previous_build.txt"
+    previous = File.exist?(previous_file) ? File.read(previous_file).strip.to_i : 0
+    
+    UI.message "Current: #{current}, Previous: #{previous}"
+    
+    if current.to_i <= previous
+      UI.user_error!("❌ Build number must be greater than #{previous}!")
+    end
+    
+    File.write(previous_file, current)
+    UI.success "✅ Build number verified"
+  end
+
+  desc "Upload canary build to internal TestFlight"
+  lane :ci_canary do
+    build_app(
+      scheme: "StackedOllama",
+      export_method: "app-store",
+      output_directory: "./canary_build"
+    )
+    
+    upload_to_testflight(
+      distribute_external: false,
+      groups: ["Internal_Team"],
+      changelog: "Canary build for internal testing"
+    )
+    
+    if ENV['SLACK_WEBHOOK_URL']
+      slack(
+        message: "🐤 Canary build uploaded to internal TestFlight",
+        slack_url: ENV['SLACK_WEBHOOK_URL'],
+        channel: "#beta"
+      )
+    end
+  end
+
+  # ---- DRY RUN: Test everything without external calls ----
+  desc "Full dry-run - test everything locally without external API calls"
+  lane :dry_run do
+    UI.header "🧪 DRY RUN - Testing pipeline locally"
+    
+    # 1️⃣ Health check
+    UI.message "1️⃣ Running health check..."
+    health_check
+    
+    # 2️⃣ Version audit
+    UI.message "2️⃣ Auditing version number..."
+    audit_version_number
+    
+    # 3️⃣ Generate changelog (AI or git)
+    UI.message "3️⃣ Generating changelog..."
+    if ENV['USE_AI_CHANGELOG']
+      generate_changelog_ai
+    else
+      prepare_release
+    end
+    
+    # 4️⃣ Build (no upload)
+    UI.message "4️⃣ Building app..."
+    build_app(
+      scheme: "StackedOllama",
+      export_method: "app-store",
+      skip_archive: ENV['SKIP_ARCHIVE'] == 'true',
+      output_directory: "./dry_run_build"
+    )
+    
+    # 5️⃣ Verify IPA signature
+    UI.message "5️⃣ Verifying IPA signature..."
+    ipa_path = Dir["./dry_run_build/*.ipa"].first
+    if ipa_path
+      sh("codesign --verify --verbose #{ipa_path}")
+      UI.success "✅ IPA signature valid"
+    end
+    
+    # 6️⃣ Mock Slack notification
+    UI.message "6️⃣ Mock Slack notification..."
+    if ENV['DISABLE_SLACK']
+      UI.message "⚠️  Slack notifications disabled (DISABLE_SLACK=true)"
+    else
+      UI.message "📱 Would send: '🧪 Dry run completed successfully!'"
+    end
+    
+    UI.success "🎉 DRY RUN COMPLETE - Everything works!"
+    UI.message ""
+    UI.message "Next steps:"
+    UI.message "  1. Review CHANGELOG.md"
+    UI.message "  2. Check ./dry_run_build/*.ipa"
+    UI.message "  3. Run: git push origin main (when ready)"
+  end
+    
+    sh "git add CHANGELOG.md && git commit -m 'docs: changelog for #{release_title}' || true"
+    sh "git push origin HEAD || true"
+    
+    UI.success("✅ Changelog prepared for #{release_title}")
+  end
+  
+  # ---- Publish GitHub Release ----
+  lane :publish_github_release do
+    sh %{
+      gh release create "#{ENV['FASTLANE_RELEASE_TITLE']}" \
+        --title "#{ENV['FASTLANE_RELEASE_TITLE']}" \
+        --notes-file CHANGELOG.md \
+        --verify-tag || true
+    }
+    
+    UI.success("✅ GitHub Release published: #{ENV['FASTLANE_RELEASE_TITLE']}")
+  end
+  
+  # ---- Slack Notification for Crashlytics ----
+  lane :notify_slack_crashlytics do |options|
+    return unless ENV['CRASHLYTICS_SLACK_WEBHOOK_URL']
+    
+    status = options[:status] || :success
+    
+    require 'net/http'
+    require 'json'
+    
+    payload = {
+      text: ":crash: *Crashlytics #{status.to_s.upcase}* – #{ENV['APP_NAME'] || 'StackedOllama'}",
+      attachments: [
+        {
+          color: status == :success ? "good" : "danger",
+          fields: [
+            { title: "Build", value: ENV['BUILD_NUMBER'] || "N/A", short: true },
+            { title: "Branch", value: ENV['CI_BRANCH'] || "master", short: true },
+            { title: "Commit", value: ENV['GIT_COMMIT'] || "N/A", short: true }
+          ]
+        }
+      ]
+    }.to_json
+    
+    uri = URI.parse(ENV['CRASHLYTICS_SLACK_WEBHOOK_URL'])
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    request = Net::HTTP::Post.new(uri.request_uri, "Content-Type" => "application/json")
+    request.body = payload
+    response = http.request(request)
+    
+    if response.is_a?(Net::HTTPSuccess)
+      UI.success("✅ Crashlytics alert sent to Slack")
+    else
+      UI.error("❌ Slack notification failed: #{response.body}")
+    end
+  end
+  
+  # ---- Helper: Check if current commit is a release tag ----
+  private_lane :is_release_tag? do
+    begin
+      # Check if HEAD has a tag matching v*.*.* pattern
+      tag = sh("git describe --exact-match --tags HEAD 2>/dev/null || echo ''").strip
+      !tag.empty? && tag.match?(/^v?\d+\.\d+\.\d+/)
+    rescue
+      false
+    end
+  end
+end

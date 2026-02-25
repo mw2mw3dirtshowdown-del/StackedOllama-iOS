@@ -1,0 +1,61 @@
+name: iOS CI/CD
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    tags: [ 'v*.*.*' ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  build:
+    runs-on: macos-14
+    
+    env:
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+      MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      APP_NAME: StackedOllama
+      CI_BRANCH: ${{ github.ref_name }}
+      BUILD_NUMBER: ${{ github.run_number }}
+      GIT_COMMIT: ${{ github.sha }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Install dependencies
+        run: bundle install
+
+      - name: Health check
+        run: bundle exec fastlane ios health_check
+
+      - name: Run CI build
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        run: bundle exec fastlane ios ci_build
+
+      - name: Release to App Store
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: bundle exec fastlane ios ci_release
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            ./build/*.ipa
+            ./build/*.dSYM.zip
+            CHANGELOG.md
