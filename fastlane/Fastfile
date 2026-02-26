@@ -13,7 +13,7 @@ platform :ios do
 
     UI.message "🔑 Checking App Store Connect API..."
     if ENV['APP_STORE_CONNECT_ISSUER_ID'].to_s.empty?
-      UI.warning "⚠️  APP_STORE_CONNECT_ISSUER_ID not set (optional for TestFlight)")
+      UI.warning "⚠️  APP_STORE_CONNECT_ISSUER_ID not set (optional for TestFlight)"
     else
       UI.success "✅ App Store Connect API configured"
     end
@@ -225,6 +225,13 @@ platform :ios do
   # ---- AI-Powered Changelog (using local Ollama) ----
   desc "Generate AI-powered changelog using local Ollama"
   lane :generate_changelog_ai do
+    # Check if ollama exists
+    unless sh("command -v ollama >/dev/null 2>&1 && echo 'exists' || echo ''").strip == "exists"
+      UI.important "⚠️  Ollama not found in PATH. Skipping AI changelog and using git log instead."
+      prepare_release
+      next
+    end
+
     # Get last 10 commits
     commits = sh("git log --oneline -n 10 --pretty=format:'%h %s'").strip
     
@@ -233,16 +240,20 @@ platform :ios do
     # Use local Ollama (qwen2.5-coder)
     prompt = "You are a helpful assistant that writes concise, user-focused changelog entries. Use bullet points, start each line with '* '. Summarize these commits:\n\n#{commits}"
     
-    ai_response = sh("ollama run qwen2.5-coder '#{prompt}'").strip
-    
-    # Save to CHANGELOG.md
-    File.write("CHANGELOG.md", ai_response)
+    begin
+      ai_response = sh("ollama run qwen2.5-coder '#{prompt}'").strip
+      # Save to CHANGELOG.md
+      File.write("CHANGELOG.md", ai_response)
+    rescue => e
+      UI.error "❌ Ollama failed: #{e.message}. Falling back to git log."
+      prepare_release
+      next
+    end
     
     version = get_version_number(xcodeproj: "StackedOllama.xcodeproj")
     ENV['FASTLANE_RELEASE_TITLE'] = "v#{version}"
     
     UI.success "🖋️  AI changelog generated and saved to CHANGELOG.md"
-    UI.message ai_response
   end
 
   # ---- Advanced Features ----
