@@ -1,60 +1,24 @@
-format_version: "11"
+format_version: "13"
 default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 
 project_type: ios
 
-trigger_map:
-  - push_branch: main
-    workflow: primary
-  - push_branch: master
-    workflow: primary
-  - tag: v*.*.*
-    workflow: deploy
-
 workflows:
   primary:
     steps:
-      - activate-ssh-key@4:
-          run_if: "{{setup_ssh_key}}"
-      - git-clone@6: {}
-      - cache-pull@2: {}
-      - script@1:
-          title: Install Dependencies
-          inputs:
-            - content: |-
-                #!/bin/bash
-                set -ex
-                bundle install
-      - fastlane@3:
-          title: Run Fastlane CI Build
-          inputs:
-            - lane: ios ci_build
-            - working_dir: .
-      - cache-push@2: {}
-      - deploy-to-bitrise-io@2: {}
+    - activate-ssh-key@4:
+        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+    - git-clone@8: {}
+    - xcode-archive@5:
+        inputs:
+        - project_path: StackedOllama.xcodeproj
+        - scheme: StackedOllama
+        - distribution_method: development
+        - automatic_code_signing: api-key
+    - deploy-to-bitrise-io@2: {}
 
-  deploy:
-    steps:
-      - activate-ssh-key@4:
-          run_if: "{{setup_ssh_key}}"
-      - git-clone@6: {}
-      - cache-pull@2: {}
-      - script@1:
-          title: Install Dependencies
-          inputs:
-            - content: |-
-                #!/bin/bash
-                set -ex
-                bundle install
-      - fastlane@3:
-          title: Run Fastlane Release
-          inputs:
-            - lane: ios ci_release
-            - working_dir: .
-      - cache-push@2: {}
-      - deploy-to-bitrise-io@2: {}
-
-meta:
-  bitrise.io:
-    stack: osx-xcode-15.2.x
-    machine_type_id: g2-m1.8core
+app:
+  envs:
+  - BITRISE_PROJECT_PATH: StackedOllama.xcodeproj
+  - BITRISE_SCHEME: StackedOllama
+  - BITRISE_DISTRIBUTION_METHOD: development
