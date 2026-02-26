@@ -4,13 +4,43 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        {
-            "name": "Launch",
-            "type": "lldb",
-            "request": "launch",
-            "program": "${workspaceRoot}/<your program>",
-            "args": [],
-            "cwd": "${workspaceRoot}"
-        }
-    ]
+    {
+      "name": " Run on iPhone 15 Pro",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/Build/Products/Debug-iphonesimulator/StackedOllama.app",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "build-ios-simulator"
+    },
+    {
+      "name": " Run on Physical Device",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/Build/Products/Debug-iphoneos/StackedOllama.app",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "build-ios-device"
+    },
+    {
+      "name": " Debug with Memory Tools",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/Build/Products/Debug-iphonesimulator/StackedOllama.app",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "build-ios-simulator",
+      "env": {
+        "MallocStackLogging": "1",
+        "NSZombieEnabled": "YES"
+      }
+    },
+    {
+      "name": " Attach to Running App",
+      "type": "lldb",
+      "request": "attach",
+      "program": "${workspaceFolder}/build/Build/Products/Debug-iphonesimulator/StackedOllama.app",
+      "waitFor": true
+    }
+  ]
 }
