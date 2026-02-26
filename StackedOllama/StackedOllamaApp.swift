@@ -85,7 +85,7 @@ final class AutonomousAgentService {
     static let shared = AutonomousAgentService()
     
     // REMOTE ACCESS via Cloudflare Tunnel! 🌍
-    private let baseURL = URL(string: "https://jurisdiction-coated-flash-alfred.trycloudflare.com")!
+    private let baseURL = URL(string: "https://popular-swimming-florence-refused.trycloudflare.com")!
     
     // Fallback to local if at home
     // private let baseURL = URL(string: "http://192.168.1.198:5557")!
@@ -148,7 +148,7 @@ final class OllamaService: LLMService {
     static let shared = OllamaService()
     
     // REMOTE ACCESS via Cloudflare Tunnel! 🌍
-    private let baseURL = URL(string: "https://jurisdiction-coated-flash-alfred.trycloudflare.com")!
+    private let baseURL = URL(string: "https://popular-swimming-florence-refused.trycloudflare.com")!
     
     // Fallback to local if at home
     // private let baseURL = URL(string: "http://192.168.1.198:5555")!
