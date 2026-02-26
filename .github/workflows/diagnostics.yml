@@ -17,6 +17,16 @@ jobs:
   diagnostics:
     runs-on: macos-14
     
+    # NOTE: Secrets must be set in GitHub repo Settings > Secrets and variables > Actions
+    # The following secrets are required for the workflow to function properly:
+    # - APP_STORE_CONNECT_ISSUER_ID
+    # - APP_STORE_CONNECT_KEY_ID  
+    # - APP_STORE_CONNECT_PRIVATE_KEY
+    # - MATCH_PASSWORD (optional, for code signing)
+    # - GH_TOKEN (for GitHub API access)
+    # - SLACK_WEBHOOK_URL (optional, for notifications)
+    # - CODECOV_TOKEN (optional, for coverage reporting)
+    
     env:
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
