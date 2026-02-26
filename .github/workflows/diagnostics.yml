@@ -1,0 +1,71 @@
+name: iOS Build Diagnostics (Linux Trigger)
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Task to run (health_check, ci_build, dry_run)'
+        required: true
+        default: 'health_check'
+        type: choice
+        options:
+          - health_check
+          - ci_build
+          - dry_run
+
+jobs:
+  diagnostics:
+    runs-on: macos-14
+    
+    env:
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+      MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Install dependencies
+        run: bundle install
+
+      - name: Run selected task
+        run: |
+          case "${{ inputs.task }}" in
+            health_check)
+              bundle exec fastlane ios health_check
+              ;;
+            ci_build)
+              bundle exec fastlane ios ci_build
+              ;;
+            dry_run)
+              DISABLE_SLACK=true SKIP_ARCHIVE=true bundle exec fastlane ios dry_run
+              ;;
+            *)
+              echo "Unknown task: ${{ inputs.task }}"
+              exit 1
+              ;;
+          esac
+
+      - name: Upload diagnostics artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-${{ inputs.task }}
+          path: |
+            ./build/*.ipa
+            ./dry_run_build/*.ipa
+            CHANGELOG.md
+            logs/
