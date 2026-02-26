@@ -1,0 +1,44 @@
+stages:
+  - test
+  - build
+
+variables:
+  LC_ALL: "en_US.UTF-8"
+  LANG: "en_US.UTF-8"
+
+# Swift Tests on macOS
+swift_tests:
+  stage: test
+  tags:
+    - saas-macos-medium-m1  # GitLab SaaS macOS runner
+  script:
+    - bundle install
+    - bundle exec fastlane ios dry_run  # Or custom test lane
+
+# iOS Build on macOS
+ios_build:
+  stage: build
+  tags:
+    - saas-macos-medium-m1
+  script:
+    - bundle install
+    - bundle exec fastlane ios ci_build
+  artifacts:
+    paths:
+      - ./build/*.ipa
+      - ./build/*.dSYM.zip
+    expire_in: 1 week
+  only:
+    - main
+    - master
+
+# Release Build
+ios_release:
+  stage: build
+  tags:
+    - saas-macos-medium-m1
+  script:
+    - bundle install
+    - bundle exec fastlane ios ci_release
+  only:
+    - tags
