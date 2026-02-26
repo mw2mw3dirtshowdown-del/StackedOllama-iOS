@@ -59,5 +59,17 @@
 	<array>
 		<string>audio</string>
 	</array>
+	
+	<!-- Configurable service URLs -->
+	<key>LLM_BASE_URL</key>
+	<string>https://assessments-exclusive-rap-circulation.trycloudflare.com</string>
+	<key>TTS_BASE_URL</key>
+	<string>http://192.168.1.198:5556</string>
+	<key>AUTONOMOUS_BASE_URL</key>
+	<string>https://assessments-exclusive-rap-circulation.trycloudflare.com</string>
+	<key>LLM_FALLBACK_URL</key>
+	<string>http://192.168.1.198:5555</string>
+	<key>AUTONOMOUS_FALLBACK_URL</key>
+	<string>http://192.168.1.198:5557</string>
 </dict>
 </plist>

@@ -1,0 +1,11 @@
+// Development configuration
+#include "Shared.xcconfig"
+
+// Development URLs
+LLM_BASE_URL = https://assessments-exclusive-rap-circulation.trycloudflare.com
+TTS_BASE_URL = http://192.168.1.198:5556
+AUTONOMOUS_BASE_URL = https://assessments-exclusive-rap-circulation.trycloudflare.com
+
+// Fallback URLs (local)
+LLM_FALLBACK_URL = http://192.168.1.198:5555
+AUTONOMOUS_FALLBACK_URL = http://192.168.1.198:5557

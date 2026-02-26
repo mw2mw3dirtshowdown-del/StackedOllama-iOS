@@ -85,34 +85,68 @@ struct DolphinAgent: Agent {
 final class AutonomousAgentService {
     static let shared = AutonomousAgentService()
     
-    // REMOTE ACCESS via Cloudflare Tunnel! 🌍
-    private let baseURL = URL(string: "https://assessments-exclusive-rap-circulation.trycloudflare.com")!
+    // Configurable base URL from Info.plist
+    private let baseURL = URL(string: Bundle.main.object(forInfoDictionaryKey: "AUTONOMOUS_BASE_URL") as? String ?? "http://192.168.1.198:5557")!
     
-    // Fallback to local if at home
+    // Fallback URL for local development
+    private let fallbackURL = URL(string: Bundle.main.object(forInfoDictionaryKey: "AUTONOMOUS_FALLBACK_URL") as? String ?? "http://192.168.1.198:5557")!
+    
+    // REMOTE ACCESS via Cloudflare Tunnel! 🌍 (commented out, now configurable)
+    // private let baseURL = URL(string: "https://assessments-exclusive-rap-circulation.trycloudflare.com")!
+    
+    // Fallback to local if at home (commented out, now configurable)
     // private let baseURL = URL(string: "http://192.168.1.198:5557")!
     
     func getAgentStatus() async throws -> [AgentStatus] {
-        let url = baseURL.appendingPathComponent("agents")
-        let (data, _) = try await URLSession.shared.data(from: url)
-        return try JSONDecoder().decode([AgentStatus].self, from: data)
+        do {
+            let url = baseURL.appendingPathComponent("agents")
+            let (data, _) = try await URLSession.shared.data(from: url)
+            return try JSONDecoder().decode([AgentStatus].self, from: data)
+        } catch {
+            // Try fallback URL
+            let url = fallbackURL.appendingPathComponent("agents")
+            let (data, _) = try await URLSession.shared.data(from: url)
+            return try JSONDecoder().decode([AgentStatus].self, from: data)
+        }
     }
     
     func getThoughts(agentId: String, limit: Int = 20) async throws -> [Thought] {
-        let url = baseURL.appendingPathComponent("agents/\(agentId)/thoughts")
-        let (data, _) = try await URLSession.shared.data(from: url)
-        return try JSONDecoder().decode([Thought].self, from: data)
+        do {
+            let url = baseURL.appendingPathComponent("agents/\(agentId)/thoughts")
+            let (data, _) = try await URLSession.shared.data(from: url)
+            return try JSONDecoder().decode([Thought].self, from: data)
+        } catch {
+            // Try fallback URL
+            let url = fallbackURL.appendingPathComponent("agents/\(agentId)/thoughts")
+            let (data, _) = try await URLSession.shared.data(from: url)
+            return try JSONDecoder().decode([Thought].self, from: data)
+        }
     }
     
     func triggerAgent(agentId: String) async throws {
-        var request = URLRequest(url: baseURL.appendingPathComponent("agents/\(agentId)/trigger"))
-        request.httpMethod = "POST"
-        _ = try await URLSession.shared.data(for: request)
+        do {
+            var request = URLRequest(url: baseURL.appendingPathComponent("agents/\(agentId)/trigger"))
+            request.httpMethod = "POST"
+            _ = try await URLSession.shared.data(for: request)
+        } catch {
+            // Try fallback URL
+            var request = URLRequest(url: fallbackURL.appendingPathComponent("agents/\(agentId)/trigger"))
+            request.httpMethod = "POST"
+            _ = try await URLSession.shared.data(for: request)
+        }
     }
     
     func getNotifications() async throws -> [AgentNotification] {
-        let url = baseURL.appendingPathComponent("notifications")
-        let (data, _) = try await URLSession.shared.data(from: url)
-        return try JSONDecoder().decode([AgentNotification].self, from: data)
+        do {
+            let url = baseURL.appendingPathComponent("notifications")
+            let (data, _) = try await URLSession.shared.data(from: url)
+            return try JSONDecoder().decode([AgentNotification].self, from: data)
+        } catch {
+            // Try fallback URL
+            let url = fallbackURL.appendingPathComponent("notifications")
+            let (data, _) = try await URLSession.shared.data(from: url)
+            return try JSONDecoder().decode([AgentNotification].self, from: data)
+        }
     }
 }
 
@@ -144,21 +178,27 @@ struct AgentNotification: Codable, Identifiable {
     let priority: Int
 }
 
-// MARK: - Ollama Service
 final class OllamaService: LLMService {
     static let shared = OllamaService()
     
-    // REMOTE ACCESS via Cloudflare Tunnel! 🌍
-    private let baseURL = URL(string: "https://assessments-exclusive-rap-circulation.trycloudflare.com")!
+    // Configurable base URL from Info.plist
+    private let baseURL = URL(string: Bundle.main.object(forInfoDictionaryKey: "LLM_BASE_URL") as? String ?? "http://192.168.1.198:5555")!
     
-    // Fallback to local if at home
-    // private let baseURL = URL(string: "http://192.168.1.198:5555")!
+    // Fallback URL for local development
+    private let fallbackURL = URL(string: Bundle.main.object(forInfoDictionaryKey: "LLM_FALLBACK_URL") as? String ?? "http://192.168.1.198:5555")!
+    
+    // REMOTE ACCESS via Cloudflare Tunnel! 🌍 (commented out, now configurable)
+    // private let baseURL = URL(string: "https://assessments-exclusive-rap-circulation.trycloudflare.com")!
+    
+    // Fallback to local if at home (commented out, now configurable)
+    // private let fallbackURL = URL(string: "http://192.168.1.198:5555")!
     
     private let logger = Logger(subsystem: "com.stackedollama", category: "network")
     
     func generate(model: String, prompt: String, systemPrompt: String) async throws -> String {
         var lastError: Error?
         
+        // First try with baseURL
         for attempt in 0..<3 {
             do {
                 let url = baseURL.appendingPathComponent("chat")
@@ -169,7 +209,7 @@ final class OllamaService: LLMService {
                 let body: [String: Any] = ["model": model, "message": prompt, "system": systemPrompt]
                 request.httpBody = try JSONSerialization.data(withJSONObject: body)
                 
-                logger.debug("Attempt \(attempt + 1)/3 - model: \(model)")
+                logger.debug("Attempt \(attempt + 1)/3 - model: \(model) - URL: \(url)")
                 
                 let (data, response) = try await URLSession.shared.data(for: request)
                 
@@ -224,7 +264,40 @@ final class OllamaService: LLMService {
             }
         }
         
-    func stream(model: String, prompt: String, systemPrompt: String) -> AsyncThrowingStream<String, Error> {
+        // If baseURL failed, try fallbackURL once
+        logger.warning("Base URL failed, trying fallback URL...")
+        do {
+            let url = fallbackURL.appendingPathComponent("chat")
+            var request = URLRequest(url: url, timeoutInterval: 30)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            let body: [String: Any] = ["model": model, "message": prompt, "system": systemPrompt]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            
+            logger.debug("Fallback attempt - URL: \(url)")
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) {
+                guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let resp = json["response"] as? String else {
+                    throw OllamaError.decoding
+                }
+                
+                logger.info("✅ Fallback request succeeded")
+                return resp
+            } else {
+                throw OllamaError.api(message: "Fallback HTTP error")
+            }
+        } catch {
+            logger.error("Fallback also failed: \(error.localizedDescription)")
+            if let lastError = lastError {
+                throw lastError
+            } else {
+                throw error
+            }
+        }
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -271,7 +344,7 @@ final class OllamaService: LLMService {
 // MARK: - TTS Service
 final class TTSService: AudioService {
     static let shared = TTSService()
-    private let baseURL = URL(string: "http://192.168.1.198:5556")!
+    private let baseURL = URL(string: Bundle.main.object(forInfoDictionaryKey: "TTS_BASE_URL") as? String ?? "http://192.168.1.198:5556")!
     
     func synthesize(_ text: String) async throws -> Data {
         let url = baseURL.appendingPathComponent("tts")
@@ -315,6 +388,7 @@ final class StackedViewModel: ObservableObject {
     @Published var mode: AgentMode = .idle
     @Published var agentStatuses: [AgentStatus] = []
     @Published var notifications: [AgentNotification] = []
+    @Published var errorMessage: String? = nil
     
     private let llm: LLMService
     private let audio: AudioService
@@ -587,6 +661,7 @@ final class StackedViewModel: ObservableObject {
                     messages.append(Message(text: "Error: \(error.localizedDescription)", isUser: false, agentName: "System"))
                 }
                 isTyping = false
+                errorMessage = "Failed to get AI response. Check network or try again."
             }
         }
     }
@@ -616,6 +691,9 @@ final class StackedViewModel: ObservableObject {
             }
         } catch {
             print("TTS failed: \(error)")
+            await MainActor.run {
+                errorMessage = "Failed to generate speech. Check TTS server connection."
+            }
         }
     }
     
@@ -696,6 +774,15 @@ struct StackedAgentView: View {
                 chatArea
                 inputArea
             }
+        }
+        .alert(item: $viewModel.errorMessage) { errorMessage in
+            Alert(
+                title: Text("Connection Error"),
+                message: Text(errorMessage),
+                dismissButton: .default(Text("OK")) {
+                    viewModel.errorMessage = nil
+                }
+            )
         }
     }
     
