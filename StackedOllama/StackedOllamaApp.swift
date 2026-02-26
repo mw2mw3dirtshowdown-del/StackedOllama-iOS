@@ -796,9 +796,9 @@ struct StackedAgentView: View {
                 }
                 .padding()
             }
-            .onChange(of: viewModel.messages.count) { _ in
+            .onChange(of: viewModel.messages.last?.text) { _ in
                 if let last = viewModel.messages.last {
-                    withAnimation(.easeOut) { proxy.scrollTo(last.id, anchor: .bottom) }
+                    withAnimation(.easeOut(duration: 0.1)) { proxy.scrollTo(last.id, anchor: .bottom) }
                 }
             }
         }
