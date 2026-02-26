@@ -41,6 +41,42 @@
       "request": "attach",
       "program": "${workspaceFolder}/build/Build/Products/Debug-iphonesimulator/StackedOllama.app",
       "waitFor": true
+    },
+    {
+      "name": "🚀 iPhone 16 Pro Max",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/Build/Products/Debug-iphonesimulator/StackedOllama.app",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "build-ios-simulator",
+      "env": {
+        "SIMULATOR_DEVICE_NAME": "iPhone 16 Pro Max"
+      }
+    },
+    {
+      "name": "🚀 iPhone 16 Pro",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/Build/Products/Debug-iphonesimulator/StackedOllama.app",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "build-ios-simulator",
+      "env": {
+        "SIMULATOR_DEVICE_NAME": "iPhone 16 Pro"
+      }
+    },
+    {
+      "name": "🚀 iPhone 16",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/Build/Products/Debug-iphonesimulator/StackedOllama.app",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "build-ios-simulator",
+      "env": {
+        "SIMULATOR_DEVICE_NAME": "iPhone 16"
+      }
     }
   ]
 }
