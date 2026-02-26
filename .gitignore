@@ -42,4 +42,5 @@ autonomous_agent.log
 agent_memory.db
 backend.pid
 notifications_*.json
+cloudflare.log
 *.bak
