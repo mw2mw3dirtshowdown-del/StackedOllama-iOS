@@ -44,6 +44,7 @@
 				A10000030000000000000001 /* Info.plist */,
 				A10000040000000000000001 /* Assets.xcassets */,
 			);
+			name = StackedOllama;
 			path = StackedOllama;
 			sourceTree = "<group>";
 		};
