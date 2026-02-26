@@ -212,14 +212,17 @@ platform :ios do
       between: ["HEAD~20", "HEAD"],
       pretty: "* %h %s"
     )
-    
+
     File.write("CHANGELOG.md", changelog)
-    
+
     version = get_version_number(xcodeproj: "StackedOllama.xcodeproj")
     release_title = "v#{version}"
     ENV['FASTLANE_RELEASE_TITLE'] = release_title
-    
-    UI.message "📝 Changelog saved to CHANGELOG.md"
+
+    sh "git add CHANGELOG.md && git commit -m 'docs: changelog for #{release_title}' || true"
+    sh "git push origin HEAD || true"
+
+    UI.success("✅ Changelog prepared for #{release_title}")
   end
 
   # ---- AI-Powered Changelog (using local Ollama) ----
@@ -349,12 +352,6 @@ platform :ios do
     UI.message "  1. Review CHANGELOG.md"
     UI.message "  2. Check ./dry_run_build/*.ipa"
     UI.message "  3. Run: git push origin main (when ready)"
-  end
-    
-    sh "git add CHANGELOG.md && git commit -m 'docs: changelog for #{release_title}' || true"
-    sh "git push origin HEAD || true"
-    
-    UI.success("✅ Changelog prepared for #{release_title}")
   end
   
   # ---- Publish GitHub Release ----
