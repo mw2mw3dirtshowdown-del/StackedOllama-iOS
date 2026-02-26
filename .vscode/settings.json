@@ -23,6 +23,26 @@
     "**/dist": true,
     "**/build": true,
     "**/.next": true,
-    "**/coverage": true
-  }
+    "**/coverage": true,
+    "**/build/**": true,
+    "**/DerivedData/**": true
+  },
+  "files.exclude": {
+    "**/.git": true,
+    "**/build": true,
+    "**/DerivedData": true,
+    "**/*.xcworkspace": false,
+    "**/*.xcodeproj": false
+  },
+  "swift.autoGenerateLaunchConfigurations": false,
+  "lldb.displayFormat": "auto",
+  "lldb.showDisassembly": "never",
+  "lldb.dereferencePointers": true,
+  "lldb.consoleMode": "commands",
+  "terminal.integrated.env.osx": {
+    "PATH": "/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin"
+  },
+  "swift.path": "/usr/bin/swift",
+  "lldb.library": "/usr/lib/liblldb.so",
+  "terminal.integrated.shell.linux": "/bin/bash"
 }

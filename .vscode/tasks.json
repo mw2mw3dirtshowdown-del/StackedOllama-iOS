@@ -1,0 +1,179 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build-ios-simulator",
+      "type": "shell",
+      "command": "xcodebuild",
+      "args": [
+        "-scheme",
+        "StackedOllama",
+        "-sdk",
+        "iphonesimulator",
+        "-configuration",
+        "Debug",
+        "-derivedDataPath",
+        "${workspaceFolder}/build",
+        "build"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$gcc"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "clean-build",
+      "type": "shell",
+      "command": "xcodebuild",
+      "args": [
+        "clean",
+        "-scheme",
+        "StackedOllama",
+        "-sdk",
+        "iphonesimulator",
+        "-derivedDataPath",
+        "${workspaceFolder}/build"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "open-simulator",
+      "type": "shell",
+      "command": "open",
+      "args": [
+        "-a",
+        "Simulator"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "build-ios-device",
+      "type": "shell",
+      "command": "xcodebuild",
+      "args": [
+        "-scheme", "StackedOllama",
+        "-sdk", "iphoneos",
+        "-configuration", "Debug",
+        "-derivedDataPath", "${workspaceFolder}/build",
+        "build",
+        "CODE_SIGN_IDENTITY=iPhone Developer",
+        "DEVELOPMENT_TEAM=YOUR_TEAM_ID"
+      ],
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "run-tests",
+      "type": "shell",
+      "command": "xcodebuild",
+      "args": [
+        "test",
+        "-scheme", "StackedOllama",
+        "-sdk", "iphonesimulator",
+        "-destination", "platform=iOS Simulator,name=iPhone 15 Pro"
+      ],
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "build-release",
+      "type": "shell",
+      "command": "xcodebuild",
+      "args": [
+        "-scheme", "StackedOllama",
+        "-sdk", "iphoneos",
+        "-configuration", "Release",
+        "archive",
+        "-archivePath", "${workspaceFolder}/build/StackedOllama.xcarchive"
+      ],
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "list-simulators",
+      "type": "shell",
+      "command": "xcrun",
+      "args": ["simctl", "list", "devices", "available"],
+      "problemMatcher": []
+    },
+    {
+      "label": "install-pods",
+      "type": "shell",
+      "command": "pod",
+      "args": ["install"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "format-swift",
+      "type": "shell",
+      "command": "swiftformat",
+      "args": ["."],
+      "problemMatcher": []
+    },
+    {
+      "label": "reset-simulator",
+      "type": "shell",
+      "command": "xcrun simctl erase all",
+      "problemMatcher": []
+    },
+    {
+      "label": "show-build-settings",
+      "type": "shell",
+      "command": "xcodebuild -scheme StackedOllama -showBuildSettings",
+      "problemMatcher": []
+    },
+    {
+      "label": "build-swift-linux",
+      "type": "shell",
+      "command": "swift",
+      "args": ["build", "-c", "debug"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "run-swift-linux",
+      "type": "shell",
+      "command": "swift",
+      "args": ["run"],
+      "problemMatcher": []
+    },
+    {
+      "label": "test-swift-linux",
+      "type": "shell",
+      "command": "swift",
+      "args": ["test"],
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "sync-to-mac",
+      "type": "shell",
+      "command": "rsync",
+      "args": [
+        "-avz",
+        "--exclude", "build",
+        "--exclude", ".git",
+        "${workspaceFolder}/",
+        "user@mac-machine:~/StackedOllama-iOS/"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ssh-build-on-mac",
+      "type": "shell",
+      "command": "ssh",
+      "args": [
+        "user@mac-machine",
+        "cd ~/StackedOllama-iOS && xcodebuild -scheme StackedOllama -sdk iphonesimulator build"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}
