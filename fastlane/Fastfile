@@ -350,12 +350,6 @@ platform :ios do
     UI.message "  2. Check ./dry_run_build/*.ipa"
     UI.message "  3. Run: git push origin main (when ready)"
   end
-    
-    sh "git add CHANGELOG.md && git commit -m 'docs: changelog for #{release_title}' || true"
-    sh "git push origin HEAD || true"
-    
-    UI.success("✅ Changelog prepared for #{release_title}")
-  end
   
   # ---- Publish GitHub Release ----
   lane :publish_github_release do

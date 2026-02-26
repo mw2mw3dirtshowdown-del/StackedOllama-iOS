@@ -15,6 +15,7 @@ struct StackedOllamaApp: App {
 // MARK: - Service Protocols
 protocol LLMService {
     func generate(model: String, prompt: String, systemPrompt: String) async throws -> String
+    func stream(model: String, prompt: String, systemPrompt: String) -> AsyncThrowingStream<String, Error>
 }
 
 protocol AudioService {
@@ -223,8 +224,47 @@ final class OllamaService: LLMService {
             }
         }
         
-        logger.error("All retry attempts exhausted")
-        throw lastError ?? URLError(.unknown)
+    func stream(model: String, prompt: String, systemPrompt: String) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    let url = baseURL.appendingPathComponent("chat")
+                    var request = URLRequest(url: url)
+                    request.httpMethod = "POST"
+                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    
+                    let body: [String: Any] = [
+                        "model": model, 
+                        "message": prompt, 
+                        "system": systemPrompt,
+                        "stream": true
+                    ]
+                    request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                    
+                    let (result, response) = try await URLSession.shared.bytes(for: request)
+                    
+                    guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+                        continuation.finish(throwing: OllamaError.api(message: "Stream error"))
+                        return
+                    }
+                    
+                    for try await line in result.lines {
+                        guard let data = line.data(using: .utf8),
+                              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                              let token = json["response"] as? String else { continue }
+                        
+                        continuation.yield(token)
+                        
+                        if let done = json["done"] as? Bool, done {
+                            break
+                        }
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
     }
 }
 
@@ -516,21 +556,36 @@ final class StackedViewModel: ObservableObject {
         let prompt = inputText
         await MainActor.run { inputText = "" }
         
+        // Add empty agent message
+        let agentMsg = Message(text: "", isUser: false, agentName: selectedAgent.name)
+        await MainActor.run { messages.append(agentMsg) }
+        
         do {
-            let response = try await llm.generate(model: selectedAgent.model, 
-                                                  prompt: prompt, 
-                                                  systemPrompt: selectedAgent.systemPrompt)
+            let stream = llm.stream(model: selectedAgent.model, 
+                                     prompt: prompt, 
+                                     systemPrompt: selectedAgent.systemPrompt)
             
-            let agentMessage = Message(text: response, isUser: false, agentName: selectedAgent.name)
-            await MainActor.run {
-                messages.append(agentMessage)
-                isTyping = false
+            var fullResponse = ""
+            for try await token in stream {
+                fullResponse += token
+                let currentResponse = fullResponse
+                await MainActor.run {
+                    if let index = messages.lastIndex(where: { !$0.isUser }) {
+                        messages[index].text = currentResponse
+                    }
+                }
             }
             
-            await speakResponse(response)
+            await MainActor.run { isTyping = false }
+            await speakResponse(fullResponse)
+            
         } catch {
             await MainActor.run {
-                messages.append(Message(text: "Error: \(error.localizedDescription)", isUser: false, agentName: "System"))
+                if let index = messages.lastIndex(where: { !$0.isUser && $0.text.isEmpty }) {
+                    messages[index].text = "Error: \(error.localizedDescription)"
+                } else {
+                    messages.append(Message(text: "Error: \(error.localizedDescription)", isUser: false, agentName: "System"))
+                }
                 isTyping = false
             }
         }
