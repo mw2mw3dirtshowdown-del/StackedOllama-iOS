@@ -11,7 +11,9 @@ jobs:
       - run: bundle install
       - run:
           name: Fastlane
-          command: bundle exec fastlane $FASTLANE_LANE
+          command: |
+            #!/bin/bash --login -eo pipefail
+            bundle exec fastlane $FASTLANE_LANE
       - store_artifacts:
           path: output
       - store_test_results:
@@ -28,7 +30,9 @@ jobs:
       - run: bundle install
       - run:
           name: Fastlane
-          command: bundle exec fastlane $FASTLANE_LANE
+          command: |
+            #!/bin/bash --login -eo pipefail
+            bundle exec fastlane $FASTLANE_LANE
       - store_artifacts:
           path: output
 
