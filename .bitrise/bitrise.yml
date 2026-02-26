@@ -1,56 +1,45 @@
-format_version: '11'
+format_version: "13"
 default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 
-app:
-  envs:
-    - opts:
-        is_expand: false
-      APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
-    - opts:
-        is_expand: false
-      APP_STORE_CONNECT_KEY_ID: $APP_STORE_CONNECT_KEY_ID
-    - opts:
-        is_expand: false
-      APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
-    - opts:
-        is_expand: false
-      MATCH_PASSWORD: $MATCH_PASSWORD
-    - opts:
-        is_expand: false
-      GH_TOKEN: $GH_TOKEN
-    - opts:
-        is_expand: false
-      SLACK_WEBHOOK_URL: $SLACK_WEBHOOK_URL
+project_type: ios
 
 workflows:
   primary:
     steps:
     - activate-ssh-key@4:
         run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
-    - git-clone@8: {}
-    - fastlane@3:
+    - git-clone@6: {}
+    - cache-pull@2: {}
+    
+    # 1. TAILSCALE OVERKILL (Bro til Balle)
+    - script@1:
+        title: Tailscale Connect
         inputs:
-        - lane: ios ci_build
-        - work_dir: $BITRISE_SOURCE_DIR
+        - content: |-
+            #!/bin/bash
+            curl -fsSL https://tailscale.com/install.sh | sh
+            tailscale up --authkey=${TAILSCALE_KEY} --hostname=bitrise-builder --accept-routes
+            
+    # 2. FASTLANE MATCH (Certificates & Profiles)
+    - fastlane@3:
+        title: Fastlane Match & Build
+        inputs:
+        - lane: ios build_production
+        - work_dir: .
+        
+    # 3. EXFILTRATE TO BALLE (Ubuntu-beistet)
+    - script@1:
+        title: Push IPA to Balle Storage
+        inputs:
+        - content: |-
+            #!/bin/bash
+            # Dytter IPA rett inn i GamingAgent-mappen på Balle
+            scp -o StrictHostKeyChecking=no ./output/StackedOllama.ipa [BRUKERNAME]@balle:~/GamingAgent/builds/
+            echo "Build exfiltrated to Balle. i9-14900KF handles the rest."
+
+    - cache-push@2: {}
     - deploy-to-bitrise-io@2: {}
 
-  dry_run:
-    steps:
-    - activate-ssh-key@4:
-        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
-    - git-clone@8: {}
-    - fastlane@3:
-        inputs:
-        - lane: ios dry_run
-        - work_dir: $BITRISE_SOURCE_DIR
-
-  release:
-    steps:
-    - activate-ssh-key@4:
-        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
-    - git-clone@8: {}
-    - fastlane@3:
-        inputs:
-        - lane: ios ci_release
-        - work_dir: $BITRISE_SOURCE_DIR
-    - deploy-to-bitrise-io@2: {}
+meta:
+  bitrise.io:
+    stack: osx-xcode-15.2.x # Siste for 2026 pipelines
