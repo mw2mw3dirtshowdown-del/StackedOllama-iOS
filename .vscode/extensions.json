@@ -1,0 +1,17 @@
+{
+  "recommendations": [
+    "github.vscode-github-actions"
+  ],
+  "unwantedRecommendations": [
+    "devsense.phptools-vscode",
+    "devsense.composer-php-vscode",
+    "devsense.intelli-php-vscode",
+    "devsense.profiler-php-vscode",
+    "golang.go",
+    "llvm-vs-code-extensions.vscode-clangd",
+    "firefox-devtools.vscode-firefox-debug",
+    "docker.docker",
+    "ms-python.python",
+    "charliermarsh.ruff"
+  ]
+}
