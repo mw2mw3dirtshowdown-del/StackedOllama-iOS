@@ -25,11 +25,12 @@ workflows:
                 #!/bin/bash
                 set -ex
                 bundle install
-      - fastlane@3:
+      - script@1:
           title: Run Fastlane CI Build
           inputs:
-            - lane: ios ci_build
-            - working_dir: .
+            - content: |-
+                #!/bin/bash --login -eo pipefail
+                bundle exec fastlane ios ci_build
       - cache-push@2: {}
       - deploy-to-bitrise-io@2: {}
 
@@ -46,11 +47,12 @@ workflows:
                 #!/bin/bash
                 set -ex
                 bundle install
-      - fastlane@3:
+      - script@1:
           title: Run Fastlane Release
           inputs:
-            - lane: ios ci_release
-            - working_dir: .
+            - content: |-
+                #!/bin/bash --login -eo pipefail
+                bundle exec fastlane ios ci_release
       - cache-push@2: {}
       - deploy-to-bitrise-io@2: {}
 
